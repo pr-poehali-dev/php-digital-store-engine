@@ -1,37 +1,45 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
+import BuyModal from '@/components/BuyModal';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
-import { products, typeLabels, typeIcons, ProductType } from '@/data/products';
+import { fetchProducts, ApiProduct } from '@/lib/api';
 
-type Filter = ProductType | 'all';
-
-const filters: { key: Filter; label: string; icon?: string }[] = [
+const filters = [
   { key: 'all', label: 'Все товары' },
-  { key: 'course', label: typeLabels.course, icon: typeIcons.course },
-  { key: 'key', label: typeLabels.key, icon: typeIcons.key },
-  { key: 'file', label: typeLabels.file, icon: typeIcons.file },
-  { key: 'subscription', label: typeLabels.subscription, icon: typeIcons.subscription },
+  { key: 'course', label: 'Курсы', icon: 'GraduationCap' },
+  { key: 'key', label: 'Ключи', icon: 'KeyRound' },
+  { key: 'file', label: 'Файлы', icon: 'FileDown' },
+  { key: 'subscription', label: 'Подписки', icon: 'Repeat' },
 ];
 
 const Catalog = () => {
-  const [active, setActive] = useState<Filter>('all');
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState('all');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'popular' | 'cheap' | 'expensive'>('popular');
+  const [buyProduct, setBuyProduct] = useState<ApiProduct | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchProducts()
+      .then(setProducts)
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = products.filter((p) => active === 'all' || p.type === active);
+    let list = active === 'all' ? products : products.filter((p) => p.type === active);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((p) => p.title.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
     }
     if (sort === 'cheap') list = [...list].sort((a, b) => a.price - b.price);
     if (sort === 'expensive') list = [...list].sort((a, b) => b.price - a.price);
-    if (sort === 'popular') list = [...list].sort((a, b) => b.sales - a.sales);
+    if (sort === 'popular') list = [...list].sort((a, b) => b.sales_count - a.sales_count);
     return list;
-  }, [active, search, sort]);
+  }, [products, active, search, sort]);
 
   return (
     <Layout>
@@ -57,20 +65,23 @@ const Catalog = () => {
               className="pl-11 h-12 rounded-xl"
             />
           </div>
-          <div className="flex gap-2">
-            {[
+          <div className="flex gap-2 flex-wrap">
+            {([
               { key: 'popular', label: 'Популярные' },
-              { key: 'cheap', label: 'Сначала дешёвые' },
-              { key: 'expensive', label: 'Сначала дорогие' },
-            ].map((s) => (
-              <Button
+              { key: 'cheap', label: 'Дешевле' },
+              { key: 'expensive', label: 'Дороже' },
+            ] as const).map((s) => (
+              <button
                 key={s.key}
-                variant={sort === s.key ? 'default' : 'outline'}
-                onClick={() => setSort(s.key as typeof sort)}
-                className={`rounded-xl h-12 ${sort === s.key ? 'gradient-primary border-0' : ''}`}
+                onClick={() => setSort(s.key)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium border transition-all h-12 ${
+                  sort === s.key
+                    ? 'gradient-primary text-white border-transparent shadow-lg'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                }`}
               >
                 {s.label}
-              </Button>
+              </button>
             ))}
           </div>
         </div>
@@ -92,10 +103,24 @@ const Catalog = () => {
           ))}
         </div>
 
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
+                <div className="h-40 bg-secondary" />
+                <div className="p-5 space-y-3">
+                  <div className="h-3 bg-secondary rounded w-1/3" />
+                  <div className="h-4 bg-secondary rounded w-3/4" />
+                  <div className="h-3 bg-secondary rounded w-full" />
+                  <div className="h-3 bg-secondary rounded w-2/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtered.map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
+              <ProductCard key={p.id} product={p} index={i} onBuy={setBuyProduct} />
             ))}
           </div>
         ) : (
@@ -106,6 +131,12 @@ const Catalog = () => {
           </div>
         )}
       </section>
+
+      <BuyModal
+        product={buyProduct}
+        open={!!buyProduct}
+        onClose={() => setBuyProduct(null)}
+      />
     </Layout>
   );
 };

@@ -1,57 +1,112 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import Icon from '@/components/ui/icon';
 import { toast } from 'sonner';
+import { fetchOrders, ApiOrder } from '@/lib/api';
 
-type Tab = 'purchases' | 'subscription' | 'licenses' | 'settings';
+type Tab = 'purchases' | 'subscription' | 'settings';
 
-const purchases = [
-  { id: 1, title: 'React с нуля до Pro', type: 'Курс', emoji: '⚛️', date: '20 июня 2026', status: 'Доступен', gradient: 'from-violet-500 to-fuchsia-500' },
-  { id: 2, title: 'Windows 11 Pro', type: 'Ключ', emoji: '🪟', date: '15 июня 2026', status: 'Активирован', gradient: 'from-sky-500 to-blue-600' },
-  { id: 3, title: 'Пресеты Lightroom «Cinema»', type: 'Файл', emoji: '🎨', date: '10 июня 2026', status: 'Скачан', gradient: 'from-orange-400 to-pink-500' },
-];
-
-const licenses = [
-  { id: 1, product: 'Windows 11 Pro', key: 'XXXXX-A4B2C-D8E9F-G1H2J-3K4L5', status: 'Активирован', expires: 'Бессрочно' },
-  { id: 2, product: 'Office 2021 Pro Plus', key: 'YYYYY-M6N7P-Q8R9S-T1U2V-3W4X5', status: 'Не активирован', expires: 'Бессрочно' },
-  { id: 3, product: 'AI Tools подписка', key: 'ZZZZZ-1A2B3-C4D5E-F6G7H-8I9J0', status: 'Активна', expires: '24 июля 2026' },
-];
+const typeLabels: Record<string, string> = {
+  course: 'Курс', key: 'Ключ', file: 'Файл', subscription: 'Подписка',
+};
 
 const Account = () => {
   const [tab, setTab] = useState<Tab>('purchases');
+  const [email, setEmail] = useState(() => localStorage.getItem('ds_email') || '');
+  const [emailInput, setEmailInput] = useState('');
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'purchases', label: 'Мои покупки', icon: 'Package' },
     { key: 'subscription', label: 'Подписка', icon: 'Repeat' },
-    { key: 'licenses', label: 'Лицензии', icon: 'KeyRound' },
     { key: 'settings', label: 'Настройки', icon: 'Settings' },
   ];
 
-  const copyKey = (key: string) => {
-    navigator.clipboard.writeText(key);
-    toast.success('Ключ скопирован в буфер обмена');
+  useEffect(() => {
+    if (!email) return;
+    setLoadingOrders(true);
+    fetchOrders(email)
+      .then(setOrders)
+      .finally(() => setLoadingOrders(false));
+  }, [email]);
+
+  const handleEmailLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = emailInput.trim().toLowerCase();
+    if (!trimmed) return;
+    localStorage.setItem('ds_email', trimmed);
+    setEmail(trimmed);
+    setEmailInput('');
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem('ds_email');
+    setEmail('');
+    setOrders([]);
+  };
+
+  const copyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Скопировано в буфер обмена');
+  };
+
+  if (!email) {
+    return (
+      <Layout>
+        <section className="gradient-mesh min-h-[60vh] flex items-center justify-center">
+          <div className="bg-card border border-border rounded-3xl p-10 w-full max-w-md text-center animate-scale-in">
+            <div className="text-5xl mb-4">👋</div>
+            <h1 className="text-2xl font-bold mb-2">Войти в кабинет</h1>
+            <p className="text-muted-foreground mb-6">
+              Введите email, который использовали при покупке, чтобы увидеть свои заказы.
+            </p>
+            <form onSubmit={handleEmailLogin} className="space-y-3">
+              <Input
+                type="email"
+                required
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="ваш@email.com"
+                className="h-12 rounded-xl text-center"
+              />
+              <Button type="submit" className="w-full h-12 rounded-xl gradient-primary border-0">
+                <Icon name="LogIn" size={18} className="mr-2" />
+                Войти
+              </Button>
+            </form>
+          </div>
+        </section>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <section className="gradient-mesh">
         <div className="container py-12">
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center text-white text-3xl font-bold animate-pulse-glow">
-              А
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center text-white text-2xl font-bold animate-pulse-glow">
+                {email[0].toUpperCase()}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Личный кабинет</h1>
+                <p className="text-muted-foreground">{email}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Привет, Александр! 👋</h1>
-              <p className="text-muted-foreground">alex@example.com · PRO подписка</p>
-            </div>
+            <Button variant="outline" className="rounded-xl" onClick={handleLogout}>
+              <Icon name="LogOut" size={16} className="mr-2" />
+              Выйти
+            </Button>
           </div>
         </div>
       </section>
 
       <section className="container py-10">
         <div className="grid lg:grid-cols-4 gap-6">
-          {/* Sidebar */}
           <aside className="lg:col-span-1">
             <div className="bg-card border border-border rounded-2xl p-3 sticky top-24">
               {tabs.map((t) => (
@@ -71,28 +126,62 @@ const Account = () => {
             </div>
           </aside>
 
-          {/* Content */}
           <div className="lg:col-span-3">
             {tab === 'purchases' && (
-              <div className="space-y-4 animate-fade-in-up">
+              <div className="animate-fade-in-up">
                 <h2 className="text-xl font-bold mb-4">Мои покупки</h2>
-                {purchases.map((p) => (
-                  <div key={p.id} className="bg-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:shadow-lg transition-all">
-                    <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${p.gradient} flex items-center justify-center text-2xl shrink-0`}>
-                      {p.emoji}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold truncate">{p.title}</h3>
-                      <p className="text-sm text-muted-foreground">{p.type} · куплено {p.date}</p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-green-500/15 text-green-600 text-xs font-medium whitespace-nowrap">
-                      {p.status}
-                    </span>
-                    <Button size="sm" className="rounded-xl gradient-primary border-0 hidden sm:flex">
-                      <Icon name="Download" size={16} className="mr-1" /> Открыть
+                {loadingOrders ? (
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="bg-card border border-border rounded-2xl p-4 flex gap-4 animate-pulse">
+                        <div className="w-16 h-16 rounded-xl bg-secondary shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-secondary rounded w-1/2" />
+                          <div className="h-3 bg-secondary rounded w-1/3" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-16 bg-card border border-border rounded-2xl">
+                    <div className="text-5xl mb-4">📦</div>
+                    <h3 className="text-lg font-bold mb-2">Покупок пока нет</h3>
+                    <p className="text-muted-foreground mb-4">Ваши покупки появятся здесь после оплаты</p>
+                    <Button className="rounded-xl gradient-primary border-0" onClick={() => window.location.href = '/catalog'}>
+                      Перейти в каталог
                     </Button>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-4">
+                    {orders.map((o) => (
+                      <div key={o.id} className="bg-card border border-border rounded-2xl p-4">
+                        <div className="flex items-center gap-4 mb-3">
+                          <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${o.gradient} flex items-center justify-center text-2xl shrink-0`}>
+                            {o.emoji}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold truncate">{o.title}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {typeLabels[o.type] ?? o.type} · {o.amount.toLocaleString('ru-RU')} ₽ · {o.paid_at ? new Date(o.paid_at).toLocaleDateString('ru-RU') : ''}
+                            </p>
+                          </div>
+                          <span className="px-3 py-1 rounded-full bg-green-500/15 text-green-600 text-xs font-medium whitespace-nowrap">
+                            Оплачено
+                          </span>
+                        </div>
+                        {o.delivery_content && (
+                          <div className="bg-secondary/60 rounded-xl p-3 flex items-start gap-2">
+                            <Icon name="KeyRound" size={16} className="text-primary shrink-0 mt-0.5" />
+                            <p className="text-sm flex-1 break-all">{o.delivery_content}</p>
+                            <button onClick={() => copyText(o.delivery_content)} className="shrink-0">
+                              <Icon name="Copy" size={16} className="text-muted-foreground hover:text-primary" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -103,95 +192,36 @@ const Account = () => {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-white/80 text-sm">Текущий тариф</p>
-                      <h3 className="text-3xl font-bold">PRO</h3>
+                      <h3 className="text-3xl font-bold">Старт</h3>
                     </div>
-                    <span className="text-5xl">💎</span>
+                    <span className="text-5xl">🆓</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-white/90 mb-6">
-                    <Icon name="Calendar" size={16} />
-                    Следующее списание 599 ₽ — 24 июля 2026
-                  </div>
-                  <div className="flex gap-3">
-                    <Button className="rounded-xl bg-white text-primary hover:bg-white/90">Сменить тариф</Button>
-                    <Button
-                      variant="outline"
-                      className="rounded-xl border-white/40 text-white hover:bg-white/10"
-                      onClick={() => toast('Подписка будет активна до конца оплаченного периода')}
-                    >
-                      Отменить
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid sm:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Активна дней', value: '124', icon: 'Clock' },
-                    { label: 'Использовано товаров', value: '38', icon: 'Package' },
-                    { label: 'Сэкономлено', value: '24 600 ₽', icon: 'PiggyBank' },
-                  ].map((s) => (
-                    <div key={s.label} className="bg-card border border-border rounded-2xl p-5">
-                      <Icon name={s.icon} size={22} className="text-primary mb-2" />
-                      <div className="text-2xl font-bold gradient-text">{s.value}</div>
-                      <p className="text-sm text-muted-foreground">{s.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {tab === 'licenses' && (
-              <div className="animate-fade-in-up">
-                <h2 className="text-xl font-bold mb-4">Лицензии и ключи</h2>
-                <div className="space-y-4">
-                  {licenses.map((l) => (
-                    <div key={l.id} className="bg-card border border-border rounded-2xl p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold">{l.product}</h3>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            l.status === 'Не активирован'
-                              ? 'bg-amber-500/15 text-amber-600'
-                              : 'bg-green-500/15 text-green-600'
-                          }`}
-                        >
-                          {l.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 bg-secondary rounded-xl p-3 mb-3">
-                        <Icon name="KeyRound" size={16} className="text-muted-foreground" />
-                        <code className="text-sm flex-1 font-mono truncate">{l.key}</code>
-                        <Button size="icon" variant="ghost" className="rounded-lg shrink-0" onClick={() => copyKey(l.key)}>
-                          <Icon name="Copy" size={16} />
-                        </Button>
-                      </div>
-                      <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Icon name="Infinity" size={14} /> Срок действия: {l.expires}
-                      </p>
-                    </div>
-                  ))}
+                  <p className="text-white/80 mb-6 text-sm">Перейдите на PRO для безлимитного доступа</p>
+                  <Button
+                    className="rounded-xl bg-white text-primary hover:bg-white/90"
+                    onClick={() => window.location.href = '/subscriptions'}
+                  >
+                    Выбрать тариф PRO
+                  </Button>
                 </div>
               </div>
             )}
 
             {tab === 'settings' && (
               <div className="animate-fade-in-up">
-                <h2 className="text-xl font-bold mb-4">Настройки профиля</h2>
-                <div className="bg-card border border-border rounded-2xl p-6 space-y-5 max-w-lg">
-                  {[
-                    { label: 'Имя', value: 'Александр', type: 'text' },
-                    { label: 'Email', value: 'alex@example.com', type: 'email' },
-                    { label: 'Телефон', value: '+7 999 123-45-67', type: 'tel' },
-                  ].map((f) => (
-                    <div key={f.label}>
-                      <label className="text-sm font-medium mb-1.5 block">{f.label}</label>
-                      <input
-                        defaultValue={f.value}
-                        type={f.type}
-                        className="w-full h-11 px-4 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                    </div>
-                  ))}
-                  <Button className="rounded-xl gradient-primary border-0" onClick={() => toast.success('Изменения сохранены')}>
-                    Сохранить изменения
+                <h2 className="text-xl font-bold mb-4">Настройки</h2>
+                <div className="bg-card border border-border rounded-2xl p-6 max-w-lg">
+                  <div className="mb-5">
+                    <label className="text-sm font-medium mb-1.5 block">Email</label>
+                    <Input value={email} readOnly className="h-11 rounded-xl bg-secondary" />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={handleLogout}
+                  >
+                    <Icon name="LogOut" size={16} className="mr-2" />
+                    Выйти из кабинета
                   </Button>
                 </div>
               </div>

@@ -1,0 +1,13 @@
+{
+  "tests": [
+    {
+      "name": "Игнорирование нерелевантного события",
+      "method": "POST",
+      "path": "/",
+      "body": {"event": "payment.created", "object": {}},
+      "expectedStatus": 200,
+      "expectedBody": "ok",
+      "bodyMatcher": "partial"
+    }
+  ]
+}

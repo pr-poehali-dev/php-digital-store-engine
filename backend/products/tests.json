@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Получить все товары",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"products": []},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Фильтр по курсам",
+      "method": "GET",
+      "path": "/?type=course",
+      "expectedStatus": 200,
+      "expectedBody": {"products": []},
+      "bodyMatcher": "partial"
+    }
+  ]
+}

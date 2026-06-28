@@ -1,27 +1,36 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import ProductCard from '@/components/ProductCard';
+import BuyModal from '@/components/BuyModal';
 import { Button } from '@/components/ui/button';
 import Icon from '@/components/ui/icon';
-import { products, typeLabels, typeIcons, ProductType } from '@/data/products';
+import { fetchProducts, ApiProduct } from '@/lib/api';
 
 const heroImage = 'https://cdn.poehali.dev/projects/a5eff662-bf14-4dbf-b8c7-c49c82d0b5e8/files/83cebf3a-3e8f-4ca9-8764-7d8d7562140d.jpg';
 
 const features = [
   { icon: 'Zap', title: 'Моментальная доставка', text: 'Товар в кабинете сразу после оплаты — без ожидания.' },
   { icon: 'ShieldCheck', title: 'Только лицензии', text: 'Все ключи и материалы официальные и проверенные.' },
-  { icon: 'CreditCard', title: 'Безопасная оплата', text: 'Карты, СБП и кошельки через защищённое соединение.' },
+  { icon: 'CreditCard', title: 'Безопасная оплата', text: 'Карты, СБП и кошельки через ЮКассу.' },
   { icon: 'Headphones', title: 'Поддержка 24/7', text: 'Поможем с активацией и ответим на любой вопрос.' },
 ];
 
-const categories: { type: ProductType; emoji: string }[] = [
-  { type: 'course', emoji: '🎓' },
-  { type: 'key', emoji: '🔑' },
-  { type: 'file', emoji: '📁' },
-  { type: 'subscription', emoji: '💎' },
+const categories = [
+  { type: 'course', emoji: '🎓', label: 'Курсы' },
+  { type: 'key', emoji: '🔑', label: 'Ключи' },
+  { type: 'file', emoji: '📁', label: 'Файлы' },
+  { type: 'subscription', emoji: '💎', label: 'Подписки' },
 ];
 
 const Index = () => {
+  const [popular, setPopular] = useState<ApiProduct[]>([]);
+  const [buyProduct, setBuyProduct] = useState<ApiProduct | null>(null);
+
+  useEffect(() => {
+    fetchProducts().then((list) => setPopular(list.slice(0, 4)));
+  }, []);
+
   return (
     <Layout>
       {/* Hero */}
@@ -81,12 +90,12 @@ const Index = () => {
           {categories.map((cat, i) => (
             <Link
               key={cat.type}
-              to="/catalog"
+              to={`/catalog`}
               className="group bg-card border border-border rounded-2xl p-6 text-center hover:shadow-xl hover:-translate-y-1 transition-all animate-fade-in-up"
               style={{ animationDelay: `${i * 80}ms` }}
             >
               <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">{cat.emoji}</div>
-              <h3 className="font-bold mb-1">{typeLabels[cat.type]}</h3>
+              <h3 className="font-bold mb-1">{cat.label}</h3>
               <span className="text-sm text-primary flex items-center justify-center gap-1">
                 Смотреть <Icon name="ChevronRight" size={14} />
               </span>
@@ -108,11 +117,27 @@ const Index = () => {
             </Button>
           </Link>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.slice(0, 4).map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
-          ))}
-        </div>
+
+        {popular.length === 0 ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-2xl overflow-hidden animate-pulse">
+                <div className="h-40 bg-secondary" />
+                <div className="p-5 space-y-3">
+                  <div className="h-3 bg-secondary rounded w-1/3" />
+                  <div className="h-4 bg-secondary rounded w-3/4" />
+                  <div className="h-3 bg-secondary rounded w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {popular.map((p, i) => (
+              <ProductCard key={p.id} product={p} index={i} onBuy={setBuyProduct} />
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Features */}
@@ -151,6 +176,12 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      <BuyModal
+        product={buyProduct}
+        open={!!buyProduct}
+        onClose={() => setBuyProduct(null)}
+      />
     </Layout>
   );
 };
